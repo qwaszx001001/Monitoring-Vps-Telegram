@@ -1,0 +1,14 @@
+services:
+  monitoring:
+    build:
+      context: .
+      dockerfile: DockerFile
+
+    env_file:
+      - .env
+
+    ports:
+      - "8015:8015"
+
+    volumes:
+      - ./:/app

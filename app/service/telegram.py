@@ -1,5 +1,10 @@
 import asyncio
-
+import datetime
+from sys import stdout
+import json
+import subprocess
+from collections import defaultdict
+from datetime import datetime, timedelta
 import telegram 
 import os
 from dotenv import load_dotenv
@@ -8,6 +13,8 @@ from service.vps import get_cpu_stats, get_memory_stats
 
 logger = logging.getLogger(__name__)
 load_dotenv()
+
+
 
 
 async def send_message(chat_id:str , text:str):
@@ -52,3 +59,54 @@ async def alert():
             await asyncio.sleep(1)
 
         await asyncio.sleep(60)
+
+
+
+async def logs():
+    """
+    Send logs message to chat
+    """
+    CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
+    if not CHAT_ID:
+        raise ValueError("TELEGRAM_CHAT_ID environment variable not set")
+    STATUS = {403,502,404}
+    counter = defaultdict(int)
+    start_time = datetime.now()
+    process = await asyncio.create_subprocess_exec(
+        ["tail","-f","/var/log/caddy/access.log"],
+        stdout = subprocess.PIPE,
+        text = True,
+    )
+
+    while True:
+        lin = await process.stdout.readline()
+        try:
+            log = json.loads(lin)
+            status = log.get("status")
+            if status not in STATUS:
+                continue
+            path = log.get(f"request",{}).get("uri","/")
+            counter[(status,path)] += 1
+        except Exception as e:
+            continue
+
+        if datetime.now() - start_time > timedelta(hours=1):
+            logger.info("=" * 50)
+            logger.info("REPORT 1 JAM")
+            logger.info("=" * 50)
+
+            hasil = sorted(counter.items(), key=lambda x: x[1], reverse=True)
+
+            for (status, path), total in hasil:
+                logger.info(f"{status} | {total:5d} | {path}")
+
+
+            await send_message(CHAT_ID, f"REPORT 1 JAM\n{report}")
+            counter.clear()
+            start_time = datetime.now()
+
+
+
+
+    
+

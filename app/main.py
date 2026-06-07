@@ -4,7 +4,7 @@ from fastapi import FastAPI
 
 from router.vps import router as vps_router
 from router.telegram import router as telegram_router
-from service.telegram import alert
+from service.telegram import alert, logs
 import asyncio
 import logging
 
@@ -15,6 +15,7 @@ import logging
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     asyncio.create_task(alert())
+    asyncio.create_task(logs())
     yield
 
 app = FastAPI(lifespan=lifespan)
